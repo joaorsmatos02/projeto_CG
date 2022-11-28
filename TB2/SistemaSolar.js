@@ -36,6 +36,7 @@ const programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 const canvas = document.querySelector("canvas");
 
 // definir planetas
+const skybox = twgl.primitives.createSphereBufferInfo(gl, 20, 100, 100);
 const sun = twgl.primitives.createSphereBufferInfo(gl, 0.6, 100, 100);
 const mercury = twgl.primitives.createSphereBufferInfo(gl, 0.1, 100, 100);
 const venus = twgl.primitives.createSphereBufferInfo(gl, 0.14, 100, 100);
@@ -49,9 +50,10 @@ const uranus = twgl.primitives.createSphereBufferInfo(gl, 0.16, 100, 100);
 const uranusRing = twgl.primitives.createDiscBufferInfo(gl, 0.25, 100, 3, 0.3);
 const neptune = twgl.primitives.createSphereBufferInfo(gl, 0.18, 100, 100);
 const pluto = twgl.primitives.createSphereBufferInfo(gl, 0.08, 100, 100);
-const planets = [sun,mercury,venus,earth,moon,mars,jupiter,saturn,saturnRing,uranus,uranusRing,neptune,pluto]
+const planets = [skybox,sun,mercury,venus,earth,moon,mars,jupiter,saturn,saturnRing,uranus,uranusRing,neptune,pluto]
 
 // carregar texturas
+const texSkybox = twgl.createTexture(gl, { src: '/texturas/stars.jpg' }); // textura da skybox
 const texSun = twgl.createTexture(gl, { src: '/texturas/sun.jpg' });
 const texMercury = twgl.createTexture(gl, { src: '/texturas/mercury.jpg' });
 const texVenus = twgl.createTexture(gl, { src: '/texturas/venus.jpg' });
@@ -65,9 +67,7 @@ const texUranus = twgl.createTexture(gl, { src: '/texturas/uranus.jpg' });
 const texUranusRing = twgl.createTexture(gl, { src: '/texturas/uranusring.jpg' });
 const texNeptune = twgl.createTexture(gl, { src: '/texturas/neptune.jpg' });
 const texPluto = twgl.createTexture(gl, { src: '/texturas/pluto.jpg' });
-const textures = [texSun,texMercury,texVenus,texEarth,texMoon,texMars,texJupiter,texSaturn,texSaturnRing,texUranus,texUranusRing,texNeptune,texPluto];
-
-const texSpace = twgl.createTexture(gl, { target: gl.TEXTURE_CUBE_MAP, src: '/texturas/stars.jpg' }); // textura da skybox
+const textures = [texSkybox,texSun,texMercury,texVenus,texEarth,texMoon,texMars,texJupiter,texSaturn,texSaturnRing,texUranus,texUranusRing,texNeptune,texPluto];
 
 var uniforms = {};
 
@@ -98,13 +98,11 @@ function render(time) {
     gl.useProgram(programInfo.program);
 
     // background
-    gl.clearColor(0, 0, 0, 1); // colocar fundo preto
-    /*uniforms.u_skybox = texSpace;
-    uniforms.u_viewDirectionProjectionInverse = m4.identity;
-    const plane = twgl.primitives.createXYQuadBufferInfo(gl);
-    twgl.setBuffersAndAttributes(gl, programInfo, plane);
+    uniforms.u_worldViewProjection = m4.multiply(viewProjection, m4.identity());
+    uniforms.texture = texSkybox;
+    twgl.setBuffersAndAttributes(gl, programInfo,skybox);
     twgl.setUniforms(programInfo, uniforms);
-    twgl.drawBufferInfo(gl, plane);*/
+    twgl.drawBufferInfo(gl, skybox);
 
     // transformacoes a aplicar a cada planeta
     const sunTranform = m4.multiply(m4.translation([0,0,0]),m4.rotationZ(time*0.0002));
@@ -139,13 +137,11 @@ function render(time) {
     var plutoTransform = m4.multiply(m4.translation([-9,0,0]),m4.rotationZ(time*0.0003));
     plutoTransform = m4.multiply(m4.rotationZ(time*0.00008),plutoTransform);
 
-    const tranformations = [sunTranform,mercuryTansform,venusTransform,earthTransform,moonTransform,marsTransform,
+    const tranformations = [m4.identity,sunTranform,mercuryTansform,venusTransform,earthTransform,moonTransform,marsTransform,
         jupiterTransform,saturnTransform,saturnTransform,uranusTransform,uranusTransform,neptuneTransform,plutoTransform];
-
 
     // renderizar planetas
     for (var i = 0; i < planets.length; i++) {
-        uniforms.u_viewDirectionProjectionInverse = null;
         uniforms.u_worldViewProjection = m4.multiply(viewProjection, tranformations[i]);
         uniforms.texture = textures[i];
         twgl.setBuffersAndAttributes(gl, programInfo,planets[i]);
