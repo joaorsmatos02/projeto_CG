@@ -50,7 +50,7 @@ var fs =
                   max(l, 0.0),
                   (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
                   1.0);
-       //return vec4(u_ambient, u_diffuse, u_specular, 1.0);
+    //   return vec4(ambient, diffuse, specular, 1.0);
     }
     
     void main() {
@@ -58,6 +58,7 @@ var fs =
       vec3 a_normal = normalize(v_normal);
       vec3 surfaceToLight = normalize(v_surfaceToLight);
       vec3 surfaceToView = normalize(v_surfaceToView);
+      
       vec3 halfVector = normalize(surfaceToLight + surfaceToView);
       
       vec4 litR = lit(dot(a_normal, surfaceToLight),
@@ -68,7 +69,7 @@ var fs =
                     u_specular * litR.z * u_specularFactor)).rgb,
           diffuseColor.a);
       
-      gl_FragColor = outColor;
+          gl_FragColor = outColor;
     }`
 ;
 
@@ -118,7 +119,7 @@ var uniforms = {
     u_lightColor: [0.992, 0.9843, 0.8275, 1],
     u_ambient: [0, 0, 0, 1],
     u_specular: [1, 1, 1, 1],
-    u_shininess: 100,
+    u_shininess: 0.00000000001,
     u_specularFactor: 1,
     u_worldInverseTranspose: m4.transpose(m4.inverse(m4.identity()))
 };
