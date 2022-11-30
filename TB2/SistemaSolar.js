@@ -1,18 +1,30 @@
 // vertex shader
 var vs = 
     `uniform mat4 u_worldViewProjection;
-
+    uniform vec3 u_lightWorldPos;
+    uniform mat4 u_world;
+    uniform mat4 u_viewInverse;
+    uniform mat4 u_worldInverseTranspose;
+    
     attribute vec4 position;
-    attribute vec2 texcoord;
     attribute vec3 normal;
-
-    varying vec4 v_pos;
+    attribute vec2 texcoord;
+    
+    varying vec4 v_position;
     varying vec2 v_texCoord;
+    varying vec3 v_normal;
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
     
     void main() {
-        v_pos = u_worldViewProjection * position;
-        v_texCoord = texcoord;
-        gl_Position = v_pos;
+      v_texCoord = texcoord;
+      v_position = u_worldViewProjection * position;
+      v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
+      
+      v_surfaceToLight = u_lightWorldPos - (u_world * position).xyz;
+      v_surfaceToView = (u_viewInverse[3] - (u_world * position)).xyz;
+      
+      gl_Position = v_position;
     }`
 ;
 
@@ -20,12 +32,43 @@ var vs =
 var fs = 
     `precision mediump float;
 
+    varying vec4 v_position;
     varying vec2 v_texCoord;
-
-    uniform sampler2D texture;
-
+    varying vec3 v_normal;
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
+    
+    uniform vec4 u_lightColor;
+    uniform vec4 u_ambient;
+    uniform sampler2D u_diffuse;
+    uniform vec4 u_specular;
+    uniform float u_shininess;
+    uniform float u_specularFactor;
+    
+    vec4 lit(float l ,float h, float m) {
+      return vec4(1.0,
+                  max(l, 0.0),
+                  (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
+                  1.0);
+       //return vec4(u_ambient, u_diffuse, u_specular, 1.0);
+    }
+    
     void main() {
-        gl_FragColor = texture2D(texture, v_texCoord);
+      vec4 diffuseColor = texture2D(u_diffuse, v_texCoord);
+      vec3 a_normal = normalize(v_normal);
+      vec3 surfaceToLight = normalize(v_surfaceToLight);
+      vec3 surfaceToView = normalize(v_surfaceToView);
+      vec3 halfVector = normalize(surfaceToLight + surfaceToView);
+      
+      vec4 litR = lit(dot(a_normal, surfaceToLight),
+                        dot(a_normal, halfVector), u_shininess);
+      
+      vec4 outColor = vec4((
+        u_lightColor * (diffuseColor * litR.y + diffuseColor * u_ambient +
+                    u_specular * litR.z * u_specularFactor)).rgb,
+          diffuseColor.a);
+      
+      gl_FragColor = outColor;
     }`
 ;
 
@@ -36,7 +79,7 @@ const programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 const canvas = document.querySelector("canvas");
 
 // definir planetas
-const skybox = twgl.primitives.createSphereBufferInfo(gl, 20, 100, 100);
+const skybox = twgl.primitives.createSphereBufferInfo(gl, 10, 100, 100);
 const sun = twgl.primitives.createSphereBufferInfo(gl, 0.6, 100, 100);
 const mercury = twgl.primitives.createSphereBufferInfo(gl, 0.1, 100, 100);
 const venus = twgl.primitives.createSphereBufferInfo(gl, 0.14, 100, 100);
@@ -69,7 +112,16 @@ const texNeptune = twgl.createTexture(gl, { src: '/texturas/neptune.jpg' });
 const texPluto = twgl.createTexture(gl, { src: '/texturas/pluto.jpg' });
 const textures = [texSkybox,texSun,texMercury,texVenus,texEarth,texMoon,texMars,texJupiter,texSaturn,texSaturnRing,texUranus,texUranusRing,texNeptune,texPluto];
 
-var uniforms = {};
+// definir iluminacao
+var uniforms = { 
+    u_lightWorldPos: [1, 8, -10],
+    u_lightColor: [0.992, 0.9843, 0.8275, 1],
+    u_ambient: [0, 0, 0, 1],
+    u_specular: [1, 1, 1, 1],
+    u_shininess: 100,
+    u_specularFactor: 1,
+    u_worldInverseTranspose: m4.transpose(m4.inverse(m4.identity()))
+};
 
 // preparar camara default
 var eye = [0, 0, -10, 0];
@@ -99,13 +151,13 @@ function render(time) {
 
     // background
     uniforms.u_worldViewProjection = m4.multiply(viewProjection, m4.identity());
-    uniforms.texture = texSkybox;
+    uniforms.u_diffuse = textures[i];
     twgl.setBuffersAndAttributes(gl, programInfo,skybox);
     twgl.setUniforms(programInfo, uniforms);
     twgl.drawBufferInfo(gl, skybox);
 
     // transformacoes a aplicar a cada planeta
-    const sunTranform = m4.multiply(m4.translation([0,0,0]),m4.rotationZ(time*0.0002));
+    const sunTranform = m4.rotationZ(time*0.0002);
 
     var mercuryTansform = m4.multiply(m4.translation([-1,0,0]),m4.rotationZ(time*0.0002));
     mercuryTansform = m4.multiply(m4.rotationZ(time*0.001),mercuryTansform);
@@ -143,7 +195,7 @@ function render(time) {
     // renderizar planetas
     for (var i = 0; i < planets.length; i++) {
         uniforms.u_worldViewProjection = m4.multiply(viewProjection, tranformations[i]);
-        uniforms.texture = textures[i];
+        uniforms.u_diffuse = textures[i];
         twgl.setBuffersAndAttributes(gl, programInfo,planets[i]);
         twgl.setUniforms(programInfo, uniforms);
         twgl.drawBufferInfo(gl, planets[i]);
