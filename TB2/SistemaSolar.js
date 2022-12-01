@@ -50,7 +50,6 @@ var fs =
                   max(l, 0.0),
                   (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
                   1.0);
-    //   return vec4(ambient, diffuse, specular, 1.0);
     }
     
     void main() {
@@ -58,7 +57,7 @@ var fs =
       vec3 a_normal = normalize(v_normal);
       vec3 surfaceToLight = normalize(v_surfaceToLight);
       vec3 surfaceToView = normalize(v_surfaceToView);
-      
+    
       vec3 halfVector = normalize(surfaceToLight + surfaceToView);
       
       vec4 litR = lit(dot(a_normal, surfaceToLight),
@@ -89,15 +88,15 @@ const moon = twgl.primitives.createSphereBufferInfo(gl, 0.08, 100, 100);
 const mars = twgl.primitives.createSphereBufferInfo(gl, 0.18, 100, 100);
 const jupiter = twgl.primitives.createSphereBufferInfo(gl, 0.25, 100, 100);
 const saturn = twgl.primitives.createSphereBufferInfo(gl, 0.22, 100, 100);
-const saturnRing = twgl.primitives.createDiscBufferInfo(gl, 0.45, 100, 3, 0.3);
+const saturnRing = twgl.primitives.createTorusBufferInfo(gl, 0.4, 0.08, 100, 100);
 const uranus = twgl.primitives.createSphereBufferInfo(gl, 0.16, 100, 100);
-const uranusRing = twgl.primitives.createDiscBufferInfo(gl, 0.25, 100, 3, 0.3);
+const uranusRing = twgl.primitives.createTorusBufferInfo(gl, 0.25, 0.03, 100, 100);
 const neptune = twgl.primitives.createSphereBufferInfo(gl, 0.18, 100, 100);
 const pluto = twgl.primitives.createSphereBufferInfo(gl, 0.08, 100, 100);
 const planets = [skybox,sun,mercury,venus,earth,moon,mars,jupiter,saturn,saturnRing,uranus,uranusRing,neptune,pluto]
 
 // carregar texturas
-const texSkybox = twgl.createTexture(gl, { src: '/texturas/stars.jpg' }); // textura da skybox
+const texSkybox = twgl.createTexture(gl, { src: '/texturas/stars.jpg' });
 const texSun = twgl.createTexture(gl, { src: '/texturas/sun.jpg' });
 const texMercury = twgl.createTexture(gl, { src: '/texturas/mercury.jpg' });
 const texVenus = twgl.createTexture(gl, { src: '/texturas/venus.jpg' });
@@ -115,12 +114,11 @@ const textures = [texSkybox,texSun,texMercury,texVenus,texEarth,texMoon,texMars,
 
 // definir iluminacao
 var uniforms = { 
-    u_lightWorldPos: [1, 8, -10],
-    u_lightColor: [0.992, 0.9843, 0.8275, 1],
-    u_ambient: [0, 0, 0, 1],
+    u_lightWorldPos: [0, 0, 0],
+    u_lightColor: [0.9, 0.8, 0.8, 1],
     u_specular: [1, 1, 1, 1],
-    u_shininess: 0.00000000001,
-    u_specularFactor: 1,
+    u_shininess: 1,
+    u_specularFactor: 0.2,
     u_worldInverseTranspose: m4.transpose(m4.inverse(m4.identity()))
 };
 
@@ -147,15 +145,10 @@ function render(time) {
     // ajustar viewport
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.enable(gl.DEPTH_TEST);
+   // gl.enable(gl.CULL_FACE);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(programInfo.program);
-
-    // background
-    uniforms.u_worldViewProjection = m4.multiply(viewProjection, m4.identity());
-    uniforms.u_diffuse = textures[i];
-    twgl.setBuffersAndAttributes(gl, programInfo,skybox);
-    twgl.setUniforms(programInfo, uniforms);
-    twgl.drawBufferInfo(gl, skybox);
+    gl.clearColor(0,0,0,1);
 
     // transformacoes a aplicar a cada planeta
     const sunTranform = m4.rotationZ(time*0.0002);
@@ -181,8 +174,12 @@ function render(time) {
     var saturnTransform = m4.multiply(m4.translation([-6,0,0]),m4.rotationZ(time*0.0003));
     saturnTransform = m4.multiply(m4.rotationZ(time*0.00015),saturnTransform);
 
+    const saturnRingTransform = m4.multiply(saturnTransform,m4.scaling([1,0.01,1]));
+
     var uranusTransform = m4.multiply(m4.translation([-7,0,0]),m4.rotationZ(time*0.0004));
     uranusTransform = m4.multiply(m4.rotationZ(time*0.00013),uranusTransform);
+
+    const uranusRingTransform = m4.multiply(uranusTransform,m4.scaling([1,0.01,1]));
 
     var neptuneTransform = m4.multiply(m4.translation([-8,0,0]),m4.rotationZ(time*0.0003));
     neptuneTransform = m4.multiply(m4.rotationZ(time*0.0001),neptuneTransform);
@@ -190,11 +187,18 @@ function render(time) {
     var plutoTransform = m4.multiply(m4.translation([-9,0,0]),m4.rotationZ(time*0.0003));
     plutoTransform = m4.multiply(m4.rotationZ(time*0.00008),plutoTransform);
 
-    const tranformations = [m4.identity,sunTranform,mercuryTansform,venusTransform,earthTransform,moonTransform,marsTransform,
-        jupiterTransform,saturnTransform,saturnTransform,uranusTransform,uranusTransform,neptuneTransform,plutoTransform];
+    const tranformations = [m4.identity(),sunTranform,mercuryTansform,venusTransform,earthTransform,moonTransform,marsTransform,
+        jupiterTransform,saturnTransform,saturnRingTransform,uranusTransform,uranusRingTransform,neptuneTransform,plutoTransform];
 
     // renderizar planetas
     for (var i = 0; i < planets.length; i++) {
+        if (i < 2)
+            uniforms.u_ambient = [1, 1, 1, 1];
+        else
+            uniforms.u_ambient = [0.2, 0.2, 0.2, 1];
+        uniforms.u_viewInverse = camera;
+        uniforms.u_world = tranformations[i];
+        uniforms.u_worldInverseTranspose = m4.transpose(m4.inverse(tranformations[i]));
         uniforms.u_worldViewProjection = m4.multiply(viewProjection, tranformations[i]);
         uniforms.u_diffuse = textures[i];
         twgl.setBuffersAndAttributes(gl, programInfo,planets[i]);

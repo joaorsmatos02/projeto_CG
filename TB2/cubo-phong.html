@@ -88,17 +88,25 @@ void main() {
 
   const bufferInfo = twgl.primitives.createCubeBufferInfo(gl, 2);
 
-  const tex = twgl.createTexture(gl, { src: '/texturas/earth.jpg' });
+  const tex = twgl.createTexture(gl);
 
   const uniforms = {
-    u_lightWorldPos: [1, 8, -10],
+    u_lightWorldPos: [0, 0, -2],
     u_lightColor: [1, 0.8, 0.8, 1],
     u_ambient: [0, 0, 0, 1],
     u_specular: [1, 1, 1, 1],
-    u_shininess: 0.1,
+    u_shininess: 10,
     u_specularFactor: 1,
     u_diffuse: tex,
   };
+
+  const fov = 30 * Math.PI / 180;
+  const zNear = 0.5;
+  const zFar = 10;
+  const eye = [1, 4, -6];
+  const target = [0, 0, 0];
+  const up = [0, 1, 0];
+  const camera = m4.lookAt(eye, target, up);
 
   function render(time) {
     time *= 0.001;
@@ -109,18 +117,10 @@ void main() {
     gl.enable(gl.CULL_FACE);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    const fov = 30 * Math.PI / 180;
+    
     const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    const zNear = 0.5;
-    const zFar = 10;
     const projection = m4.perspective(fov, aspect, zNear, zFar);
-
-    const eye = [1, 4, -6];
-    const target = [0, 0, 0];
-    const up = [0, 1, 0];
-    const camera = m4.lookAt(eye, target, up);
     const view = m4.inverse(camera);
-
     const viewProjection = m4.multiply(projection, view);
     const world = m4.rotationY(time);
 
