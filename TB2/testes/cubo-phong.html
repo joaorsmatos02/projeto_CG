@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <script src="twgl.js-master/dist/5.x/twgl-full.js"></script>
+  <script src="../twgl.js-master/dist/5.x/twgl-full.js"></script>
 </head>
 
 <body>
@@ -88,14 +88,14 @@ void main() {
 
   const bufferInfo = twgl.primitives.createCubeBufferInfo(gl, 2);
 
-  const tex = twgl.createTexture(gl, { src: '/texturas/stars.jpg'});
+  const tex = twgl.createTexture(gl, { src: 'GrassBlockTop.jpg'});
 
   const uniforms = {
     u_lightWorldPos: [0, 0, -2],
     u_lightColor: [1, 0.8, 0.8, 1],
     u_ambient: [0, 0, 0, 1],
     u_specular: [1, 1, 1, 1],
-    u_shininess: 50,
+    u_shininess: 5,
     u_specularFactor: 1,
     u_diffuse: tex,
   };

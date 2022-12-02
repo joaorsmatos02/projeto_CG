@@ -97,25 +97,20 @@ var vsGouraud = `
     varying vec3 v_normal;
     varying vec2 v_texCoord;
 
-    void main(){
+    void main() {
         v_texCoord = texcoord;
         v_surfaceToView = (u_viewInverse[3] - (u_world * position)).xyz;
         v_surfaceToLight = u_lightWorldPos - (u_world * position).xyz; 
         v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
         
-        vec3 E = normalize(-v_surfaceToView);       // we are in Eye Coordinates, so EyePos is (0,0,0)  
-        vec3 R = normalize(-reflect(v_surfaceToLight,v_normal));  
+        vec3 eye = normalize(-v_surfaceToView);
+        vec3 reflection = normalize(-reflect(v_surfaceToLight,v_normal));  
+         
+        vec4 ambient = u_ambient * vec4(0.1,0.1,0.1,1);    
+        vec4 diffuse = texture2D(u_diffuse, texcoord) * max(dot(v_normal,v_surfaceToLight), 0.0) * vec4(0.001,0.001,0.001,1);    
+        vec4 specular = u_specular * u_specularFactor * pow(max(dot(reflection,eye),0.0),0.3*u_shininess);
         
-        //calculate Ambient Term:  
-        vec4 Iamb = u_ambient;    
-        
-        //calculate Diffuse Term:  
-        vec4 Idiff = texture2D(u_diffuse, texcoord) * max(dot(v_normal,v_surfaceToLight), 0.0);    
-        
-        // calculate Specular Term:
-        vec4 Ispec = u_specular * pow(max(dot(R,E),0.0),0.3*u_shininess);
-        
-        vertex_color = u_lightColor + Iamb + Idiff + Ispec; 
+        vertex_color = u_lightColor + ambient + diffuse + specular; 
         
         gl_Position = u_worldViewProjection * position;
     }`
@@ -128,7 +123,7 @@ var fsGouraud =
     varying vec2 v_texCoord;
     varying vec4 vertex_color;   
   
-    void main (void)  {    
+    void main ()  {    
       gl_FragColor = texture2D(u_diffuse, v_texCoord) * vertex_color;   
     }`
 ;
@@ -139,7 +134,7 @@ const gouraud = [vsGouraud,fsGouraud];
 // variaveis gerais
 const m4 = twgl.m4;
 const gl = document.querySelector("canvas").getContext("webgl");
-const programInfo = twgl.createProgramInfo(gl, phong);
+const programInfo = twgl.createProgramInfo(gl, gouraud);
 const canvas = document.querySelector("canvas");
 
 // definir planetas
@@ -179,9 +174,9 @@ const textures = [texSkybox,texSun,texMercury,texVenus,texEarth,texMoon,texMars,
 // definir iluminacao
 var uniforms = { 
     u_lightWorldPos: [0, 0, 0],
-    u_lightColor: [0.9, 0.8, 0.8, 1],
+    u_lightColor: [0.9, 0.9, 0.8, 1],
     u_specular: [1, 1, 1, 1],
-    u_shininess: 1,
+    u_shininess: 0.2,
     u_specularFactor: 0.2,
     u_worldInverseTranspose: m4.transpose(m4.inverse(m4.identity()))
 };

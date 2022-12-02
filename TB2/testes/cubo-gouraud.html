@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- saved from url=(0112)https://moodle.ciencias.ulisboa.pt/pluginfile.php/427877/mod_page/content/123/cubo-light.html?time=1669018548743 -->
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <script src="twgl.js-master/dist/5.x/twgl-full.js"></script>
+  <script src="../twgl.js-master/dist/5.x/twgl-full.js"></script>
 </head>
 
 <body>
@@ -44,15 +44,15 @@
     vec3 R = normalize(-reflect(v_surfaceToLight,v_normal));  
     
     //calculate Ambient Term:  
-    vec4 Iamb = u_ambient;    
+    vec4 Iamb = u_ambient * vec4(0.1,0.1,0.1,1);    
     
     //calculate Diffuse Term:  
     vec4 Idiff = texture2D(u_diffuse, texcoord) * max(dot(v_normal,v_surfaceToLight), 0.0);    
     
     // calculate Specular Term:
-    vec4 Ispec = u_specular * pow(max(dot(R,E),0.0),0.3*u_shininess);
+    vec4 Ispec = u_specular * u_specularFactor * pow(max(dot(R,E),0.0),0.3*u_shininess);
     
-    vertex_color = u_lightColor + Iamb + Idiff + Ispec; 
+    vertex_color = u_lightColor* vec4(0.1,0.1,0.1,1) + Iamb + Idiff + Ispec; 
     
     gl_Position = u_worldViewProjection * position;
   }
@@ -72,9 +72,9 @@
     const gl = document.querySelector("canvas").getContext("webgl");
     const programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
   
-    const bufferInfo = twgl.primitives.createCubeBufferInfo(gl, 2);
+    const bufferInfo = twgl.primitives.createSphereBufferInfo(gl, 1,100,100);
   
-    const tex = twgl.createTexture(gl, { src: '/texturas/sun.jpg'});
+    const tex = twgl.createTexture(gl, { src: 'GrassBlockTop.png'});
     /*const tex = twgl.createTexture(gl, {
     src: [
       0, 0, 0, 255,
@@ -86,11 +86,11 @@
   
     const uniforms = {
       u_lightWorldPos: [0, 0, -2],
-      u_lightColor: [0, 1, 0, 1],
-      u_ambient: [0, 0, 0.3, 1],
+      u_lightColor: [1, 1, 1, 1],
+      u_ambient: [0.2, 0.2, 0.2, 1],
       u_specular: [1, 1, 1, 1],
-      u_shininess: 10,
-      u_specularFactor: 1,
+      u_shininess: 1,
+      u_specularFactor: 0.2,
       u_diffuse: tex,
     };
   
