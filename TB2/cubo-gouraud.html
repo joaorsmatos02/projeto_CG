@@ -11,129 +11,128 @@
   <canvas id="c"></canvas>
 
 <script id="vs" type="notjs">
-  precision mediump float;
-  
-  attribute vec3 inPos;
-  attribute vec3 inNV;
-  attribute vec3 inCol;
-  
-  varying vec3 vertPos;
-  varying vec3 vertNV;
-  varying vec3 vertCol;
-  
-  uniform mat4 u_projectionMat44;
-  uniform mat4 u_viewMat44;
-  uniform mat4 u_modelMat44;
+  uniform mat4 u_worldViewProjection;
+  uniform vec3 u_lightWorldPos;
+  uniform mat4 u_world;
+  uniform mat4 u_viewInverse;
+  uniform mat4 u_worldInverseTranspose;
 
-  struct TLightSource
-  {
-      vec3  lightDir;
-      vec3  ambient;
-      vec3  diffuse;
-      vec3  specular;
-      float shininess;
-  };
+  uniform vec4 u_lightColor;
+  uniform vec4 u_ambient;
+  uniform sampler2D u_diffuse;
+  uniform vec4 u_specular;
+  uniform float u_shininess;
+  uniform float u_specularFactor;
 
-  uniform TLightSource u_lightSource;
-  
-  vec3 Light( vec3 eyeV, vec3 N )
-  {
-      vec3  lightCol  = u_lightSource.ambient;
-      vec3  L         = normalize( -u_lightSource.lightDir );
-      float NdotL     = max( 0.0, dot( N, L ) );
-      lightCol       += NdotL * u_lightSource.diffuse;
-      vec3  H         = normalize( eyeV + L );
-      float NdotH     = max( 0.0, dot( N, H ) );
-      float kSpecular = ( u_lightSource.shininess + 2.0 ) * pow( NdotH, u_lightSource.shininess ) / ( 2.0 * 3.14159265 );
-      lightCol       += kSpecular * u_lightSource.specular;
-      return lightCol; 
-  }
-  
-  void main()
-  {
-      vec3 modelNV  = mat3( u_modelMat44 ) * normalize( inNV );
-      vertNV        = mat3( u_viewMat44 ) * modelNV;
-      vec4 modelPos = u_modelMat44 * vec4( inPos, 1.0 );
-      vec4 viewPos  = u_viewMat44 * modelPos;
-      vertPos       = viewPos.xyz / viewPos.w;
-      vec3 eyeV     = normalize( -vertPos );
-      vec3 normalV  = normalize( vertNV );
-      vertCol       = inCol * Light( eyeV, normalV );
-      gl_Position   = u_projectionMat44 * viewPos;
+  attribute vec4 position;
+  attribute vec3 normal;
+  attribute vec2 texcoord;
+
+  varying vec3 v_surfaceToLight;
+  varying vec3 v_surfaceToView;
+  varying vec4 vertex_color;
+  varying vec3 v_normal;
+  varying vec2 v_texCoord;
+
+  void main(){
+    v_texCoord = texcoord;
+    v_surfaceToView = (u_viewInverse[3] - (u_world * position)).xyz;
+    v_surfaceToLight = u_lightWorldPos - (u_world * position).xyz; 
+    v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
+    
+    vec3 E = normalize(-v_surfaceToView);       // we are in Eye Coordinates, so EyePos is (0,0,0)  
+    vec3 R = normalize(-reflect(v_surfaceToLight,v_normal));  
+    
+    //calculate Ambient Term:  
+    vec4 Iamb = u_ambient;    
+    
+    //calculate Diffuse Term:  
+    vec4 Idiff = texture2D(u_diffuse, texcoord) * max(dot(v_normal,v_surfaceToLight), 0.0);    
+    
+    // calculate Specular Term:
+    vec4 Ispec = u_specular * pow(max(dot(R,E),0.0),0.3*u_shininess);
+    
+    vertex_color = u_lightColor + Iamb + Idiff + Ispec; 
+    
+    gl_Position = u_worldViewProjection * position;
   }
 </script>
 <script id="fs" type="notjs">
   precision mediump float;
-  
-  varying vec3 vertPos;
-  varying vec3 vertNV;
-  varying vec3 vertCol;
-  
-  void main()
-  {
-      gl_FragColor = vec4( vertCol, 1.0 );
-  }
+  uniform sampler2D u_diffuse;
+  varying vec2 v_texCoord;
+  varying vec4 vertex_color;   
+
+  void main (void)  {    
+    gl_FragColor = texture2D(u_diffuse, v_texCoord) * vertex_color;   
   }
   </script>
-<script type="module">
-  const m4 = twgl.m4;
-  const gl = document.querySelector("canvas").getContext("webgl");
-  const programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
-
-  const bufferInfo = twgl.primitives.createCubeBufferInfo(gl, 2);
-
-  const tex = twgl.createTexture(gl, { src: '/texturas/stars.jpg'});
-
-  const uniforms = {
-    u_lightWorldPos: [1, 8, -10],
-    u_lightColor: [1, 0.8, 0.8, 1],
-    u_ambient: [1, 1, 1, 1],
-    u_specular: [1, 1, 1, 1],
-    u_shininess: 50,
-    u_specularFactor: 1,
-    u_diffuse: tex,
-  };
-
+  <script type="module">
+    const m4 = twgl.m4;
+    const gl = document.querySelector("canvas").getContext("webgl");
+    const programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
   
-
-  function render(time) {
-    time *= 0.001;
-    twgl.resizeCanvasToDisplaySize(gl.canvas);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.CULL_FACE);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
+    const bufferInfo = twgl.primitives.createCubeBufferInfo(gl, 2);
+  
+    const tex = twgl.createTexture(gl, { src: '/texturas/sun.jpg'});
+    /*const tex = twgl.createTexture(gl, {
+    src: [
+      0, 0, 0, 255,
+      0, 0, 0, 255,
+      0, 0, 0, 255,
+      0, 0, 0, 255,
+    ],
+  });*/
+  
+    const uniforms = {
+      u_lightWorldPos: [0, 0, -2],
+      u_lightColor: [0, 1, 0, 1],
+      u_ambient: [0, 0, 0.3, 1],
+      u_specular: [1, 1, 1, 1],
+      u_shininess: 10,
+      u_specularFactor: 1,
+      u_diffuse: tex,
+    };
+  
     const fov = 30 * Math.PI / 180;
-    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     const zNear = 0.5;
     const zFar = 10;
-    const projection = m4.perspective(fov, aspect, zNear, zFar);
-
     const eye = [1, 4, -6];
     const target = [0, 0, 0];
     const up = [0, 1, 0];
     const camera = m4.lookAt(eye, target, up);
-    const view = m4.inverse(camera);
-
-    const viewProjection = m4.multiply(projection, view);
-    const world = m4.rotationY(time);
-
-    uniforms.u_viewInverse = camera;
-    uniforms.u_world = world;
-    uniforms.u_worldInverseTranspose = m4.transpose(m4.inverse(world));
-    uniforms.u_worldViewProjection = m4.multiply(viewProjection, world);
-
-    gl.useProgram(programInfo.program);
-    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
-    twgl.setUniforms(programInfo, uniforms);
-    twgl.drawBufferInfo(gl, bufferInfo);
-
+  
+    function render(time) {
+      time *= 0.001;
+      twgl.resizeCanvasToDisplaySize(gl.canvas);
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.CULL_FACE);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.clearColor(0,0,0,1);
+  
+      
+      const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+      const projection = m4.perspective(fov, aspect, zNear, zFar);
+      const view = m4.inverse(camera);
+      const viewProjection = m4.multiply(projection, view);
+      const world = m4.rotationY(time);
+  
+      uniforms.u_viewInverse = camera;
+      uniforms.u_world = world;
+      uniforms.u_worldInverseTranspose = m4.transpose(m4.inverse(world));
+      uniforms.u_worldViewProjection = m4.multiply(viewProjection, world);
+  
+      gl.useProgram(programInfo.program);
+      twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+      twgl.setUniforms(programInfo, uniforms);
+      twgl.drawBufferInfo(gl, bufferInfo);
+  
+      requestAnimationFrame(render);
+    }
     requestAnimationFrame(render);
-  }
-  requestAnimationFrame(render);
-
-</script>
+  
+  </script>
 
 </body></html>

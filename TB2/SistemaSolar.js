@@ -1,5 +1,5 @@
-// vertex shader
-var vs = 
+// vertex phong
+var vsPhong = 
     `uniform mat4 u_worldViewProjection;
     uniform vec3 u_lightWorldPos;
     uniform mat4 u_world;
@@ -28,8 +28,8 @@ var vs =
     }`
 ;
 
-// fragment shader
-var fs = 
+// fragment phong
+var fsPhong = 
     `precision mediump float;
 
     varying vec4 v_position;
@@ -72,14 +72,78 @@ var fs =
     }`
 ;
 
+// vertex gouraud
+var vsGouraud = `
+    uniform mat4 u_worldViewProjection;
+    uniform vec3 u_lightWorldPos;
+    uniform mat4 u_world;
+    uniform mat4 u_viewInverse;
+    uniform mat4 u_worldInverseTranspose;
+
+    uniform vec4 u_lightColor;
+    uniform vec4 u_ambient;
+    uniform sampler2D u_diffuse;
+    uniform vec4 u_specular;
+    uniform float u_shininess;
+    uniform float u_specularFactor;
+
+    attribute vec4 position;
+    attribute vec3 normal;
+    attribute vec2 texcoord;
+
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
+    varying vec4 vertex_color;
+    varying vec3 v_normal;
+    varying vec2 v_texCoord;
+
+    void main(){
+        v_texCoord = texcoord;
+        v_surfaceToView = (u_viewInverse[3] - (u_world * position)).xyz;
+        v_surfaceToLight = u_lightWorldPos - (u_world * position).xyz; 
+        v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
+        
+        vec3 E = normalize(-v_surfaceToView);       // we are in Eye Coordinates, so EyePos is (0,0,0)  
+        vec3 R = normalize(-reflect(v_surfaceToLight,v_normal));  
+        
+        //calculate Ambient Term:  
+        vec4 Iamb = u_ambient;    
+        
+        //calculate Diffuse Term:  
+        vec4 Idiff = texture2D(u_diffuse, texcoord) * max(dot(v_normal,v_surfaceToLight), 0.0);    
+        
+        // calculate Specular Term:
+        vec4 Ispec = u_specular * pow(max(dot(R,E),0.0),0.3*u_shininess);
+        
+        vertex_color = u_lightColor + Iamb + Idiff + Ispec; 
+        
+        gl_Position = u_worldViewProjection * position;
+    }`
+;
+
+// fragment gouraud
+var fsGouraud = 
+    `precision mediump float;
+    uniform sampler2D u_diffuse;
+    varying vec2 v_texCoord;
+    varying vec4 vertex_color;   
+  
+    void main (void)  {    
+      gl_FragColor = texture2D(u_diffuse, v_texCoord) * vertex_color;   
+    }`
+;
+
+const phong = [vsPhong,fsPhong];
+const gouraud = [vsGouraud,fsGouraud];
+
 // variaveis gerais
 const m4 = twgl.m4;
 const gl = document.querySelector("canvas").getContext("webgl");
-const programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+const programInfo = twgl.createProgramInfo(gl, phong);
 const canvas = document.querySelector("canvas");
 
 // definir planetas
-const skybox = twgl.primitives.createSphereBufferInfo(gl, 10, 100, 100);
+const skybox = twgl.primitives.createSphereBufferInfo(gl, 25, 100, 100);
 const sun = twgl.primitives.createSphereBufferInfo(gl, 0.6, 100, 100);
 const mercury = twgl.primitives.createSphereBufferInfo(gl, 0.1, 100, 100);
 const venus = twgl.primitives.createSphereBufferInfo(gl, 0.14, 100, 100);
