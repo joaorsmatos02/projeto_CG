@@ -103,7 +103,7 @@ var vsGouraud = `
         v_surfaceToLight = u_lightWorldPos - (u_world * position).xyz; 
         v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
         
-        vec3 eye = normalize(-v_surfaceToView);
+        vec3 eye = normalize(v_surfaceToView);
         vec3 reflection = normalize(-reflect(v_surfaceToLight,v_normal));  
          
         vec4 ambient = u_ambient * vec4(0.1,0.1,0.1,1);    
@@ -134,7 +134,7 @@ const gouraud = [vsGouraud,fsGouraud];
 // variaveis gerais
 const m4 = twgl.m4;
 const gl = document.querySelector("canvas").getContext("webgl");
-const programInfo = twgl.createProgramInfo(gl, gouraud);
+const programInfo = twgl.createProgramInfo(gl, phong);
 const canvas = document.querySelector("canvas");
 
 // definir planetas
@@ -251,7 +251,7 @@ function render(time) {
 
     // renderizar planetas
     for (var i = 0; i < planets.length; i++) {
-        if (i < 2)
+        if (i < 2) // aplicar maior luz ambiente ao sol e skybox
             uniforms.u_ambient = [1, 1, 1, 1];
         else
             uniforms.u_ambient = [0.2, 0.2, 0.2, 1];
